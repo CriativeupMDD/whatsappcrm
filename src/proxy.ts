@@ -1,19 +1,36 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { assertPublicSupabaseConfig } from '@/lib/supabase/config'
+import { logSupabaseError } from '@/lib/supabase/errors'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
+  let config
+
+  try {
+    config = assertPublicSupabaseConfig()
+  } catch (error) {
+    const classified = logSupabaseError('middleware.env', error)
+    if (request.nextUrl.pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Supabase configuration error', kind: classified.kind },
+        { status: 500 },
+      )
+    }
+
+    return supabaseResponse
+  }
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    config.url,
+    config.publicKey,
     {
       cookies: {
         getAll() {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -23,7 +40,14 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError) {
+    logSupabaseError('middleware.getUser', authError)
+  }
 
   // Auth pages - redirect to dashboard if already logged in
   if (user && (

@@ -54,30 +54,15 @@ const SECURITY_HEADERS = [
 ] as const;
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: process.cwd(),
+  },
   /**
    * Cache-Control policy.
    *
-   * Why this exists:
-   *   Hostinger's CDN was applying `s-maxage=31536000` (1 year) to
-   *   prerendered HTML pages by default. When a new deploy shipped
-   *   fresh Turbopack chunk hashes, the edge kept serving year-old
-   *   HTML referencing chunk filenames that no longer existed on
-   *   disk — result: HTML 200, every /_next/static/*.js and .css
-   *   came back 404, the page rendered unstyled. Private/incognito
-   *   did nothing because the cache is server-side.
-   *
-   * Strategy:
-   *   - /_next/static/* — immutable for a year. Filenames are
-   *     content-hashed, so a new build produces new filenames; the
-   *     old ones are safe to keep indefinitely in caches.
-   *   - /api/*          — no-store. API responses are per-user and
-   *     must never be shared across requests at the edge.
-   *   - Everything else — public, brief s-maxage + generous
-   *     stale-while-revalidate. The edge serves instantly from cache
-   *     for the first 5 min, then returns cached content while
-   *     refreshing in the background for up to 24 h. A deploy's
-   *     chunk-hash drift self-heals within ~5 min with no user-
-   *     visible latency.
+   * Vercel already owns the immutable /_next/static policy, so this
+   * config only forces API routes to no-store and keeps regular HTML
+   * on a short shared-cache window.
    *
    *   Note: dynamic dashboard routes (/inbox, /contacts, /pipelines,
    *   /broadcasts, etc.) are server-rendered per request — Next.js
@@ -93,15 +78,6 @@ const nextConfig: NextConfig = {
    */
   async headers() {
     return [
-      {
-        source: "/_next/static/:path*",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
       {
         source: "/api/:path*",
         headers: [{ key: "Cache-Control", value: "no-store" }],
