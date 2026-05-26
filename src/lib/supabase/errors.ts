@@ -1,10 +1,10 @@
 type SupabaseLikeError = {
-  message?: string
-  code?: string
-  details?: string
-  hint?: string
-  status?: number
-}
+  message?: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  status?: number;
+};
 
 export type SupabaseErrorKind =
   | 'missing-env'
@@ -13,26 +13,27 @@ export type SupabaseErrorKind =
   | 'user-not-found'
   | 'rls'
   | 'missing-table'
-  | 'unknown'
+  | 'network'
+  | 'unknown';
 
 export function classifySupabaseError(error: unknown): {
-  kind: SupabaseErrorKind
-  message: string
-  code?: string
-  details?: string
-  hint?: string
-  status?: number
+  kind: SupabaseErrorKind;
+  message: string;
+  code?: string;
+  details?: string;
+  hint?: string;
+  status?: number;
 } {
-  const err = error as SupabaseLikeError
-  const message = err?.message ?? String(error)
-  const normalized = message.toLowerCase()
+  const err = error as SupabaseLikeError;
+  const message = err?.message ?? String(error);
+  const normalized = message.toLowerCase();
 
   if (normalized.includes('missing')) {
-    return { kind: 'missing-env', message }
+    return { kind: 'missing-env', message };
   }
 
   if (normalized.includes('url') && normalized.includes('invalid')) {
-    return { kind: 'invalid-url', message }
+    return { kind: 'invalid-url', message };
   }
 
   if (
@@ -41,7 +42,20 @@ export function classifySupabaseError(error: unknown): {
     normalized.includes('jwt malformed') ||
     normalized.includes('unsupported')
   ) {
-    return { kind: 'invalid-key', message, code: err?.code, status: err?.status }
+    return {
+      kind: 'invalid-key',
+      message,
+      code: err?.code,
+      status: err?.status,
+    };
+  }
+
+  if (
+    normalized.includes('failed to fetch') ||
+    normalized.includes('fetch failed') ||
+    normalized.includes('networkerror')
+  ) {
+    return { kind: 'network', message, code: err?.code, status: err?.status };
   }
 
   if (
@@ -49,7 +63,12 @@ export function classifySupabaseError(error: unknown): {
     normalized.includes('user not found') ||
     normalized.includes('email not confirmed')
   ) {
-    return { kind: 'user-not-found', message, code: err?.code, status: err?.status }
+    return {
+      kind: 'user-not-found',
+      message,
+      code: err?.code,
+      status: err?.status,
+    };
   }
 
   if (
@@ -64,7 +83,7 @@ export function classifySupabaseError(error: unknown): {
       details: err?.details,
       hint: err?.hint,
       status: err?.status,
-    }
+    };
   }
 
   if (
@@ -80,7 +99,7 @@ export function classifySupabaseError(error: unknown): {
       details: err?.details,
       hint: err?.hint,
       status: err?.status,
-    }
+    };
   }
 
   return {
@@ -90,11 +109,11 @@ export function classifySupabaseError(error: unknown): {
     details: err?.details,
     hint: err?.hint,
     status: err?.status,
-  }
+  };
 }
 
 export function logSupabaseError(scope: string, error: unknown) {
-  const classified = classifySupabaseError(error)
-  console.error(`[Supabase:${scope}] ${classified.kind}`, classified)
-  return classified
+  const classified = classifySupabaseError(error);
+  console.error(`[Supabase:${scope}] ${classified.kind}`, classified);
+  return classified;
 }
