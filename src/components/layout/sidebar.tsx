@@ -14,6 +14,8 @@ import {
   Radio,
   Zap,
   Workflow,
+  ListTodo,
+  BriefcaseBusiness,
   Settings,
   LogOut,
   User,
@@ -31,6 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { AppPermission } from "@/lib/permissions";
 
 interface NavItem {
   href: string;
@@ -41,20 +44,23 @@ interface NavItem {
    * Purely informational — doesn't affect routing or access.
    */
   beta?: boolean;
+  permission: AppPermission;
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/inbox", label: "Inbox", icon: MessageSquare },
-  { href: "/contacts", label: "Contacts", icon: Users },
-  { href: "/pipelines", label: "Pipelines", icon: GitBranch },
-  { href: "/broadcasts", label: "Broadcasts", icon: Radio },
-  { href: "/automations", label: "Automations", icon: Zap },
-  { href: "/flows", label: "Flows", icon: Workflow, beta: true },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard" },
+  { href: "/inbox", label: "Inbox", icon: MessageSquare, permission: "inbox" },
+  { href: "/contacts", label: "Contacts", icon: Users, permission: "contacts" },
+  { href: "/tasks", label: "Tarefas", icon: ListTodo, permission: "tasks" },
+  { href: "/crm", label: "CRM", icon: BriefcaseBusiness, permission: "crm" },
+  { href: "/pipelines", label: "Pipelines", icon: GitBranch, permission: "crm" },
+  { href: "/broadcasts", label: "Broadcasts", icon: Radio, permission: "automations" },
+  { href: "/automations", label: "Automations", icon: Zap, permission: "automations" },
+  { href: "/flows", label: "Flows", icon: Workflow, beta: true, permission: "automations" },
 ];
 
 const bottomNavItems = [
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/settings", label: "Settings", icon: Settings, permission: "settings" as AppPermission },
 ];
 
 interface SidebarProps {
@@ -67,6 +73,11 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
   const totalUnread = useTotalUnread();
+  const permissions = profile?.permissions ?? [];
+  const visibleNavItems = navItems.filter((item) => permissions.includes(item.permission));
+  const visibleBottomNavItems = bottomNavItems.filter((item) =>
+    permissions.includes(item.permission),
+  );
 
   // Close the drawer when route changes — users opened it to navigate,
   // so once they pick a destination the drawer should get out of the way.
@@ -144,7 +155,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         {/* Main navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="flex flex-col gap-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -192,7 +203,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           <div className="my-4 border-t border-slate-800" />
 
           <ul className="flex flex-col gap-1">
-            {bottomNavItems.map((item) => {
+            {visibleBottomNavItems.map((item) => {
               const isActive = pathname.startsWith(item.href);
               return (
                 <li key={item.href}>

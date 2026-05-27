@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { assertPublicSupabaseConfig } from '@/lib/supabase/config'
 import { logSupabaseError } from '@/lib/supabase/errors'
+import { normalizePermissions, routePermission } from '@/lib/permissions'
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -61,11 +62,34 @@ export async function proxy(request: NextRequest) {
   }
 
   // Protected pages - redirect to login if not authenticated
-  const protectedPaths = ['/dashboard', '/inbox', '/contacts', '/pipelines', '/broadcasts', '/automations', '/settings']
+  const protectedPaths = ['/dashboard', '/inbox', '/contacts', '/tasks', '/crm', '/pipelines', '/broadcasts', '/automations', '/flows', '/settings']
   if (!user && protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
+  }
+
+  if (user && protectedPaths.some(path => request.nextUrl.pathname.startsWith(path))) {
+    const permission = routePermission(request.nextUrl.pathname)
+    if (permission) {
+      const { data: member } = await supabase
+        .from('team_members')
+        .select('permissions, status')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      const isCollaborator = !!member
+      const allowed =
+        !isCollaborator ||
+        (member.status === 'active' && normalizePermissions(member.permissions).includes(permission))
+
+      if (!allowed) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        url.searchParams.set('denied', permission)
+        return NextResponse.redirect(url)
+      }
+    }
   }
 
   // API routes that need auth (not webhooks)

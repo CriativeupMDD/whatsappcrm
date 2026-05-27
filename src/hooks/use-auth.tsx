@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { APP_PERMISSIONS, normalizePermissions, type AppPermission } from "@/lib/permissions";
 import type { User } from "@supabase/supabase-js";
 
 interface Profile {
@@ -23,6 +24,9 @@ interface Profile {
    * #134 — but the column survives for future beta gates.
    */
   beta_features: string[];
+  clinic_id: string | null;
+  permissions: AppPermission[];
+  team_role: string | null;
 }
 
 interface AuthContextValue {
@@ -76,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, email, avatar_url, role, beta_features")
+        .select("id, full_name, email, avatar_url, role, beta_features, clinic_id")
         .eq("user_id", userId)
         .maybeSingle();
 
@@ -91,6 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (data) {
+        const { data: member } = await supabase
+          .from("team_members")
+          .select("role, permissions, status")
+          .eq("user_id", userId)
+          .maybeSingle();
+        const memberPermissions = normalizePermissions(member?.permissions);
+
         // `beta_features` is `NOT NULL DEFAULT ARRAY[]` in the DB, but
         // narrow defensively in case the column hasn't been migrated yet
         // (older deployments running 011 lazily) — `null` reads as no
@@ -98,6 +109,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile({
           ...data,
           beta_features: data.beta_features ?? [],
+          clinic_id: data.clinic_id ?? null,
+          permissions:
+            member?.status === "active" && memberPermissions.length > 0
+              ? memberPermissions
+              : [...APP_PERMISSIONS],
+          team_role: member?.role ?? null,
         });
       }
     } catch (err) {

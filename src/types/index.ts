@@ -1,6 +1,7 @@
 export interface Profile {
   id: string;
   user_id: string;
+  clinic_id?: string | null;
   full_name: string;
   email: string;
   avatar_url?: string;
@@ -132,11 +133,16 @@ export interface MessageReaction {
 export interface WhatsAppConfig {
   id: string;
   user_id: string;
-  phone_number_id: string;
+  connection_type?: 'meta_api' | 'evolution_qrcode';
+  phone_number_id?: string | null;
   waba_id?: string;
-  access_token: string;
+  access_token?: string | null;
   verify_token?: string;
   status: 'connected' | 'disconnected';
+  evolution_api_url?: string | null;
+  evolution_api_key?: string | null;
+  evolution_instance_name?: string | null;
+  evolution_status?: 'disconnected' | 'waiting_qrcode' | 'connected' | 'error';
   connected_at?: string;
 }
 

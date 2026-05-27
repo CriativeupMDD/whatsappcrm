@@ -10,6 +10,7 @@ import { ProfileForm } from '@/components/settings/profile-form';
 import { PasswordForm } from '@/components/settings/password-form';
 import { SessionsCard } from '@/components/settings/sessions-card';
 import { AppearancePanel } from '@/components/settings/appearance-panel';
+import { CollaboratorsCard } from '@/components/settings/collaborators-card';
 
 const TAB_VALUES = [
   'profile',
@@ -92,6 +93,7 @@ export default function SettingsPage() {
 
         <TabsContent value="profile" className="space-y-6">
           <ProfileForm />
+          <CollaboratorsCard />
           <PasswordForm />
           <SessionsCard />
         </TabsContent>

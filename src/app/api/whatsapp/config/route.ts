@@ -45,7 +45,7 @@ export async function GET() {
 
     const { data: config, error: configError } = await supabase
       .from('whatsapp_config')
-      .select('phone_number_id, access_token, status')
+      .select('phone_number_id, access_token, status, connection_type')
       .eq('user_id', user.id)
       .maybeSingle()
 
@@ -57,12 +57,12 @@ export async function GET() {
       )
     }
 
-    if (!config) {
+    if (!config || config.connection_type === 'evolution_qrcode') {
       return NextResponse.json(
         {
           connected: false,
           reason: 'no_config',
-          message: 'No WhatsApp configuration saved yet. Fill in the form and click Save Configuration.',
+          message: 'No Meta WhatsApp API configuration is active.',
         },
         { status: 200 }
       )
@@ -223,6 +223,7 @@ export async function POST(request: Request) {
           waba_id: waba_id || null,
           access_token: encryptedAccessToken,
           verify_token: encryptedVerifyToken,
+          connection_type: 'meta_api',
           status: 'connected',
           connected_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -245,6 +246,7 @@ export async function POST(request: Request) {
           waba_id: waba_id || null,
           access_token: encryptedAccessToken,
           verify_token: encryptedVerifyToken,
+          connection_type: 'meta_api',
           status: 'connected',
           connected_at: new Date().toISOString(),
         })
